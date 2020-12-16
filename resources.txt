@@ -1,0 +1,5 @@
+ ERROR handling 
+ https://www.tutorialspoint.com/cprogramming/c_error_handling.htm
+
+ ERRORS CORRESPONDING TO errno : 
+ https://www.oryx-embedded.com/doc/error_8h_source.html
