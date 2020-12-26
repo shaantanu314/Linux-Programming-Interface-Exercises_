@@ -1,3 +1,12 @@
+/*
+
+An implementation of malloc() and free() using sbrk()
+
+shaantanu kulkarni 
+shaantanu.kulkarni@students.iiit.ac.in
+
+*/
+
 #define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 
@@ -32,7 +41,7 @@ void* my_malloc(size_t size)
         {
             
             
-            new_free_header = (block_header_t*)((unsigned long long int)current_header + memory_needed);
+            new_free_header = (block_header_t*)((unsigned long)current_header + memory_needed);
             new_free_header->prev_chunk = current_header;
             new_free_header->next_chunk = current_header->next_chunk;
             new_free_header->is_free = 1;
@@ -54,30 +63,73 @@ void* my_malloc(size_t size)
         
 
     }
-    //printf("expansion needed \n");
+    /*
+    If we fail to find a block which is of size more than the required size of the block requested
+    we need to expand the heap size, so we use the sbrk() to do so.
+    */
+    printf("expansion needed \n");
     
     block_header_t* new_header = (block_header_t*)sbrk(memory_needed);  
-    //offsets the pointer to from where the memory starts
-    block_header_t* memory_ptr = ((void *)((unsigned long)new_header + sizeof(block_header_t)));
+    /*
+    Since we want to return the pointer to the location form where the memory can be used ,ie, after the block header,
+    we need to offsets the pointer 
+    */
+    void *memory_ptr = ((void *)((unsigned long)new_header + sizeof(block_header_t)));
     
+    
+    if(previous_header!=NULL)
+        previous_header->next_chunk = new_header;
     new_header->prev_chunk = previous_header;
     new_header->next_chunk = NULL;
     new_header->block_length = memory_needed;
     new_header->is_free = 0;
-    if(previous_header!=NULL)
-        previous_header->next_chunk = new_header;
     
 
 
-    // handling condition if the ll_head isnt pointing to the first head
+    /*
+    handling condition if the ll_head the first head yet
+    */
     if(!ll_head)
     {
-        //printf("updated\n");
         ll_head = new_header;
     }
 
+    block_header_t* header_ptr = (block_header_t *)((unsigned long)memory_ptr - sizeof(block_header_t));
+    //printf("ptr: %p\n",header_ptr);
+
     return memory_ptr;
-    
+}
+
+void my_free(void *ptr)
+{
+    block_header_t* header_ptr = ((block_header_t *)((unsigned long)ptr - sizeof(block_header_t)));
+    header_ptr->is_free=1;
+    if(header_ptr->next_chunk != NULL)
+    {
+        if(header_ptr->next_chunk->is_free==1)
+        {
+            
+            header_ptr->block_length = header_ptr->block_length + header_ptr->next_chunk->block_length ;
+            if(header_ptr->next_chunk->next_chunk)
+                header_ptr->next_chunk->next_chunk->prev_chunk = header_ptr;
+
+            header_ptr->next_chunk=header_ptr->next_chunk->next_chunk;            
+        }
+    }
+
+    if(header_ptr->prev_chunk != NULL)
+    {
+        if(header_ptr->prev_chunk->is_free==1)
+        {
+            
+            header_ptr->prev_chunk->block_length += header_ptr->block_length;
+            header_ptr->prev_chunk->next_chunk = header_ptr->next_chunk;
+            if(header_ptr->next_chunk)
+                header_ptr->next_chunk->prev_chunk = header_ptr->prev_chunk;
+        }
+    }
+
+
 }
  
 
@@ -86,13 +138,28 @@ int main()
 {
 
     char *buf;
-    char *buf_[13];
-    for(int i=10;i>=1;i--)
+    char *buf_[103];
+
+    // test case:
+    for(int i=100;i>=1;i--)
     {
-        printf("head : %p\n",ll_head);
+        //printf("head : %p\n",ll_head);
         buf = (char*)my_malloc(i);
         buf_[i]= buf;
-        printf("%p\n",buf);
+
+        // printf("ptr : %p\n",buf);
+        // block_header_t* header_ptr = ((block_header_t *)((unsigned long)buf - sizeof(block_header_t)));
+        //printf("ptr : %p\n",header_ptr);
+        
+        if(i%2)
+        {
+            printf("attempting to free()\n");
+            my_free(buf);
+        }
+        //printf("\n\n\n");
     }
+
+
+
 
 }
